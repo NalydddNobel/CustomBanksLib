@@ -1,0 +1,3 @@
+displayName = Custom Banks Lib
+author = Nalyd T.
+version = 0.1
