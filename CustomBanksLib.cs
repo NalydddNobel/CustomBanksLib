@@ -1,30 +1,99 @@
 using System.Collections.Generic;
 using System.Reflection;
 using Terraria;
+using Terraria.DataStructures;
 using Terraria.ModLoader;
 
 namespace CustomBanksLib
 {
 	public class CustomBanksLib : Mod
 	{
-		public const int FirstBank = -2;
-		public const int VanillaBanks = -5;
-		public const int VanillaBanksCount = 4;
-		public static int ModBanks { get; internal set; }
 		public static int ModBanksCount { get; internal set; }
-		private static List<ModBank> registeredBanks;
+		internal static List<ModBank> registeredBanks;
 
 		private static MethodInfo Player_RemoveAnglerAccOptionsFromRewardPool;
 
 		public override void Load()
         {
-			ModBanksCount = VanillaBanksCount;
-			ModBanks = VanillaBanks;
+			ModBanksCount = 0;
 			registeredBanks = new List<ModBank>();
 			Player_RemoveAnglerAccOptionsFromRewardPool = typeof(Player).GetMethod("RemoveAnglerAccOptionsFromRewardPool", BindingFlags.NonPublic | BindingFlags.Instance);
 			On.Terraria.Player.PurgeDD2EnergyCrystals += Player_PurgeDD2EnergyCrystals;
             On.Terraria.Player.DropAnglerAccByMissing += Player_DropAnglerAccByMissing;
+            On.Terraria.UI.ChestUI.Draw += ChestUI_Draw;
+            On.Terraria.Main.DrawTrashItemSlot += Main_DrawTrashItemSlot;
+            On.Terraria.Main.DrawBestiaryIcon += Main_DrawBestiaryIcon;
+            On.Terraria.Main.DrawEmoteBubblesButton += Main_DrawEmoteBubblesButton;
+            On.Terraria.Main.DrawInventory += Main_DrawInventory;
             //IL.Terraria.Player.BuyItem += Player_BuyItem;
+        }
+
+        private void Main_DrawInventory(On.Terraria.Main.orig_DrawInventory orig, Main self)
+		{
+			int oldChest = Main.LocalPlayer.chest;
+			orig(self);
+			Main.LocalPlayer.chest = oldChest;
+        }
+
+        private void Main_DrawEmoteBubblesButton(On.Terraria.Main.orig_DrawEmoteBubblesButton orig, int pivotTopLeftX, int pivotTopLeftY)
+        {
+			int oldChest = Main.LocalPlayer.chest;
+			if (Main.LocalPlayer.GetModPlayer<CustomBanksPlayer>().customBank > -1)
+			{
+				Main.LocalPlayer.chest = 0;
+			}
+			orig(pivotTopLeftX, pivotTopLeftY);
+			Main.LocalPlayer.chest = oldChest;
+		}
+
+		private void Main_DrawBestiaryIcon(On.Terraria.Main.orig_DrawBestiaryIcon orig, int pivotTopLeftX, int pivotTopLeftY)
+        {
+			int oldChest = Main.LocalPlayer.chest;
+			if (Main.LocalPlayer.GetModPlayer<CustomBanksPlayer>().customBank > -1)
+            {
+				Main.LocalPlayer.chest = 0;
+            }
+			orig(pivotTopLeftX, pivotTopLeftY);
+			Main.LocalPlayer.chest = oldChest;
+		}
+
+		private void Main_DrawTrashItemSlot(On.Terraria.Main.orig_DrawTrashItemSlot orig, int pivotTopLeftX, int pivotTopLeftY)
+        {
+			if (Main.LocalPlayer.GetModPlayer<CustomBanksPlayer>().customBank > -1)
+            {
+				Main.trashSlotOffset = new Point16(5, 168);
+			}
+			orig(pivotTopLeftX, pivotTopLeftY);
+        }
+
+        private void ChestUI_Draw(On.Terraria.UI.ChestUI.orig_Draw orig, Microsoft.Xna.Framework.Graphics.SpriteBatch spritebatch)
+        {
+			if (!Main.recBigList)
+            {
+				int customBank = Main.LocalPlayer.GetModPlayer<CustomBanksPlayer>().customBank;
+				if (customBank != -1)
+                {
+					var b = registeredBanks[customBank];
+
+					if (b.CloseWhenVanillaChestIsOpened && Main.LocalPlayer.chest != -1)
+                    {
+						b.OnClose(Main.LocalPlayer);
+						goto Origin;
+                    }
+
+					b.DrawUI(spritebatch);
+					if (b.DisableVanillaChestUI)
+                    {
+						if (Main.LocalPlayer.GetModPlayer<CustomBanksPlayer>().customBank > -1)
+						{
+							Main.LocalPlayer.chest = 0;
+						}
+						return;
+                    }
+                }
+            }
+		Origin:
+			orig(spritebatch);
         }
 
         private bool Player_DropAnglerAccByMissing(On.Terraria.Player.orig_DropAnglerAccByMissing orig, Player self, List<int> itemIdsOfAccsWeWant, int randomChanceForASingleAcc, out bool botheredRollingForADrop, out int itemIdToDrop)
@@ -33,7 +102,7 @@ namespace CustomBanksLib
             {
 				if (b.CheckForAnglerOptionsRemoval)
                 {
-					var chest = b.GetBank(self).item;
+					var chest = b.GetBank(self);
 					for (int i = 0; i < chest.Length; i++)
 					{
 						Player_RemoveAnglerAccOptionsFromRewardPool.Invoke(self, new object[] { itemIdsOfAccsWeWant, chest[i] });
@@ -58,11 +127,8 @@ namespace CustomBanksLib
 
         public static int RegisterBank(ModBank bank)
         {
-			bank.Chest = ModBanks;
 			bank.Type = ModBanksCount;
 			registeredBanks.Add(bank);
-
-			ModBanks--;
 			ModBanksCount++;
 			return ModBanksCount - 1;
         }
@@ -70,20 +136,11 @@ namespace CustomBanksLib
 		/// 
 		/// </summary>
 		/// <param name="player"></param>
-		/// <param name="chest">The chest 'ID'</param>
+		/// <param name="type">The chest 'ID'</param>
 		/// <returns>A ModBank using a chest. Returns null if one doesn't exist</returns>
-		public static ModBank GetBankFromChest(Player player, int chest)
+		public static ModBank GetBank(Player player, int type)
 		{
-			return (chest > 0 && chest < ModBanksCount - VanillaBanksCount) ? registeredBanks[BankType(chest)] : null;
-		}
-		/// <summary>
-		/// Expects a negative number below <see cref="VanillaBanks"/> (-5). Usually <see cref="Player.chest"/>
-		/// </summary>
-		/// <param name="chest"></param>
-		/// <returns></returns>
-		public static int BankType(int chest)
-		{
-			return -chest + (VanillaBanks - 1);
+			return (type > 0 && type < ModBanksCount) ? registeredBanks[type] : null;
 		}
 
 		/// <summary>
@@ -93,15 +150,15 @@ namespace CustomBanksLib
 		/// <param name="player"></param>
 		public static void SetBank<T>(Player player) where T : ModBank
         {
-			player.chest = ModContent.GetInstance<ModBank>().Chest;
+			player.GetModPlayer<CustomBanksPlayer>().customBank = ModContent.GetInstance<ModBank>().Type;
         }
 
 		public class TestModBank : ModBank
         {
 			public override string BankName => "Balls";
-            public override Chest GetBank(Player player)
+            public override Item[] GetBank(Player player)
             {
-				return player.bank4;
+				return player.bank4.item;
             }
         }
     }

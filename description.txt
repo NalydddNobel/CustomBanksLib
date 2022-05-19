@@ -1,1 +1,8 @@
-Custom Banks Lib is a pretty cool mod, it does...this. Modify this file with a description of your mod.
+Custom Banks Lib is currently a WIP mod which lets you add custom 'bank's, like the Piggy Bank and Safe. Could also be used for custom chests but that'd require extra effort on your part.
+
+Currently there are no mod calls for this lib. You will need to hard-reference it. 
+
+To use, create a custom class and inherit from ModBank, then to activate the chest, either do:
+CustomBanksLib.SetBank<MyBank>(player);
+OR
+player.GetModPlayer<CustomBanksPlayer>().SetBank(ModContent.GetInstance<MyBank>().Type);
