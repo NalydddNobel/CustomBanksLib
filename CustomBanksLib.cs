@@ -153,13 +153,13 @@ namespace CustomBanksLib
 			player.GetModPlayer<CustomBanksPlayer>().customBank = ModContent.GetInstance<ModBank>().Type;
         }
 
-		public class TestModBank : ModBank
-        {
-			public override string BankName => "Balls";
-            public override Item[] GetBank(Player player)
-            {
-				return player.bank4.item;
-            }
-        }
+		//public class TestModBank : ModBank
+  //      {
+		//	public override string BankName => "Balls";
+  //          public override Item[] GetBank(Player player)
+  //          {
+		//		return player.bank4.item;
+  //          }
+  //      }
     }
 }

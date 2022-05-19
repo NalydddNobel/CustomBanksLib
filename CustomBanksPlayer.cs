@@ -49,12 +49,12 @@ namespace CustomBanksLib
                 SetBank(-1, closeVanillaChest: false);
         }
 
-        public override void PostUpdate()
-        {
-            if (Player.controlHook)
-            {
-                SetBank(0);
-            }
-        }
+        //public override void PostUpdate()
+        //{
+        //    if (Player.controlHook)
+        //    {
+        //        SetBank(0);
+        //    }
+        //}
     }
 }
